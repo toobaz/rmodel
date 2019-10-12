@@ -1,0 +1,53 @@
+# RModel
+
+This is a simple compatibility library that allows calling R estimators as if they were statsmodels estimators.
+
+This allows to tackle, with very small code adaptations, the following use cases:
+* from within a Python codebase, use estimators covered by R but not by statsmodels
+* from within a Python codebase, use estimators for which the R implementation is preferred
+* merge within a single table (which can be created for instance with `python-stargazer` or `statsmodels.iolib.summary2.summary_col`) both results produced by statsmodels and produced from R
+
+## Current status
+
+Only OLS has been tested so far; other models can be specified with the `command` parameter, and might or might not work.
+
+Loading R results from disk in progress.
+
+## Examples
+
+### With stargazer
+
+The following example takes the [python stargazer](https://github.com/mwburke/stargazer) example (with the `from_formula()` statsmodels syntax) and extends it with a new column which is exactly like the previous but estimated in R:
+
+```python3
+import pandas as pd
+from sklearn import datasets
+import statsmodels.api as sm
+from stargazer.stargazer import Stargazer
+from rmodel import RRegressionModel
+
+diabetes = datasets.load_diabetes()
+df = pd.DataFrame(diabetes.data)
+df.columns = ['Age', 'Sex', 'BMI', 'ABP', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']
+df['target'] = diabetes.target
+
+est = sm.OLS.from_formula('target ~ Age + Sex + BMI + ABP', data=df).fit()
+est2 = sm.OLS.from_formula('target ~ Age + Sex + BMI + ABP + S1 + S2', data=df).fit()
+est3 = RRegressionModel.from_formula('target ~ Age + Sex + BMI + ABP + S1 + S2', data=df).fit()
+
+
+stargazer = Stargazer([est, est2, est3])
+
+stargazer.render_html()
+```
+
+<table style="text-align:center"><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="3"><em>Dependent variable:</em></td></tr><tr><td style="text-align:left"></td><tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td><td>(3)</td></tr><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">ABP</td><td>416.674<sup>***</sup></td><td>397.583<sup>***</sup></td><td>397.583<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(69.495)</td><td>(70.87)</td><td>(70.87)</td></tr><tr><td style="text-align:left">Age</td><td>37.241<sup></sup></td><td>24.704<sup></sup></td><td>24.704<sup></sup></td></tr><tr><td style="text-align:left"></td><td>(64.117)</td><td>(65.411)</td><td>(65.411)</td></tr><tr><td style="text-align:left">BMI</td><td>787.179<sup>***</sup></td><td>789.742<sup>***</sup></td><td>789.742<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(65.424)</td><td>(66.887)</td><td>(66.887)</td></tr><tr><td style="text-align:left">Intercept</td><td>152.133<sup>***</sup></td><td>152.133<sup>***</sup></td><td>152.133<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(2.853)</td><td>(2.853)</td><td>(2.853)</td></tr><tr><td style="text-align:left">S1</td><td></td><td>197.852<sup></sup></td><td>197.852<sup></sup></td></tr><tr><td style="text-align:left"></td><td></td><td>(143.812)</td><td>(143.812)</td></tr><tr><td style="text-align:left">S2</td><td></td><td>-169.251<sup></sup></td><td>-169.251<sup></sup></td></tr><tr><td style="text-align:left"></td><td></td><td>(142.744)</td><td>(142.744)</td></tr><tr><td style="text-align:left">Sex</td><td>-106.578<sup>*</sup></td><td>-82.862<sup></sup></td><td>-82.862<sup></sup></td></tr><tr><td style="text-align:left"></td><td>(62.125)</td><td>(64.851)</td><td>(64.851)</td></tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Observations</td><td>442.0</td><td>442.0</td><td>442.0</td></tr><tr><td style="text-align: left">R<sup>2</sup></td><td>0.4</td><td>0.403</td><td>0.403</td></tr><tr><td style="text-align: left">Adjusted R<sup>2</sup></td><td>0.395</td><td>0.395</td><td>0.395</td></tr><tr><td style="text-align: left">Residual Std. Error</td><td>59.976(df = 437.0)</td><td>59.982(df = 435.0)</td><td>59.982(df = 435.0)</td></tr><tr><td style="text-align: left">F Statistic</td><td>72.913<sup>***</sup>(df = 4.0; 437.0)</td><td>48.915<sup>***</sup>(df = 6.0; 435.0)</td><td>48.915<sup>***</sup>(df = 6.0; 435.0)</td></tr><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Note:</td><td colspan="3" style="text-align: right"><em>p&lt;0.1</em>; <b>p&lt;0.05</b>; p&lt;0.01</td></tr></table>
+
+
+### With `summary_col`
+
+The same can be done with `statsmodels`' `summary_col`:
+
+```python3
+table = summary_col([est, est2, est3])
+```
