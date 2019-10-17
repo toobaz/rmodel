@@ -68,6 +68,9 @@ class RRegressionModel(OLS):
         return mod
 
     def fit(self):
+
+        ## STEP 1: setup R environment and run the estimation
+
         for library in self._backstage['libraries']:
             r("library('{}')".format(library))
 
@@ -82,12 +85,17 @@ class RRegressionModel(OLS):
         r(self._full_formula)
         r("rsum <- summary(res)")
 
+        ## STEP 2: retrieve all results we need
 
         res = r['rsum']
         self._debug(res)
 
-        d_res = dict(zip(res.names, res))
-        coeffs_mat = d_res['coefficients']
+        # Retrieve confidence intervals:
+        ci = r("ci <- confint(res)")
+
+        _attrs = self._inspect_R(res, ci=ci)
+
+        ## STEP 3: package the results a statsmodels-like format
 
         # Sometimes features are retrieved from wrapper (stargazer does this),
         # other times from the actual result (statsmodels' summary_col does
@@ -96,12 +104,49 @@ class RRegressionModel(OLS):
         rres.target = self.formula.split()[0]
         rres.model = self
 
+        # We need to hijack this rather than subclassing because stargazer does
+        # not use "isistance()" but "type()":
+        wrap = RegressionResultsWrapper(rres)
+
+        # All items except "params" are @cache_readonly and need first to be
+        # deleted, and then redefined:
+        for attr in _attrs:
+            if attr not in 'params':
+                if hasattr(rres, attr):
+                    delattr(rres, attr)
+            setattr(rres, attr, _attrs[attr])
+            setattr(wrap, attr, _attrs[attr])
+
+        rres.__class__ = RegressionResults
+
+        # Clean up memory:
+        r("gc()")
+
+        return wrap
+
+    def _inspect_R(self, res, ci=None):
+        """
+        Extract from an R result the various pieces.
+
+        Parameters
+        ----------
+        res : R object
+            R summary of a fitted model.
+            Typically obtained with "summary(fitted)" (in R).
+        ci : R object
+            Confidence intervals of a fitted model
+            Typically obtained with "confint(fitted)" (in R).
+        """
+
+        d_res = dict(zip(res.names, res))
+        coeffs_mat = d_res['coefficients']
+
         # FIXME: there MUST be a better way, the results matrix in R KNOWS its
         # names. I shouldn't be retrieving them separately, and guessing the
         # correct columns:
         coef_names = r("names(coef(res))")
 
-        # R denotes the intercept as "(Intercept)", statsmodels as "const":
+        # R denotes the intercept as "(Intercept)", statsmodels as "Intercept":
         intercept_idces = np.where(coef_names == '(Intercept)')[0]
         coef_names[intercept_idces[0]] = 'Intercept'
 
@@ -124,33 +169,14 @@ class RRegressionModel(OLS):
                                         _attrs['df_model'],
                                         _attrs['df_resid'])
 
-        # Store confidence intervals:
-        r("ci <- confint(res)")
-        ci = pd.DataFrame(r['ci'], index=coef_names)
+        if ci is not None:
+            ci = pd.DataFrame(r['ci'], index=coef_names)
 
-        def conf_int(alpha=0.05):
-            if alpha != 0.05:
-                raise NotImplementedError("Only alpha=0.05 is supported, "
-                                          "{} passed".format(alpha))
-            return ci
-        _attrs['conf_int'] = conf_int
+            def conf_int(alpha=0.05):
+                if alpha != 0.05:
+                    raise NotImplementedError("Only alpha=0.05 is supported, "
+                                              "{} passed".format(alpha))
+                return ci
+            _attrs['conf_int'] = conf_int
 
-
-        # We need to hijack this rather than subclassing because of how
-        # stargazer does not use "isistance()" but "type()":
-        wrap = RegressionResultsWrapper(rres)
-
-        # All items except "params" are @cache_readonly and need first to be
-        # deleted, and then redefined:
-        for attr in _attrs:
-            if attr not in 'params':
-                if hasattr(rres, attr):
-                    delattr(rres, attr)
-            setattr(rres, attr, _attrs[attr])
-            setattr(wrap, attr, _attrs[attr])
-
-        # Clean up memory:
-        r("gc()")
-
-        rres.__class__ = RegressionResults
-        return wrap
+        return _attrs
