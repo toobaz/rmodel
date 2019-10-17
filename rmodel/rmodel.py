@@ -61,6 +61,10 @@ class RRegressionModel(OLS):
         mod = OLS.from_formula(formula, data)
         mod.__class__ = RRegressionModel
 
+        if len(kwargs):
+            raise NotImplementedError("Passing keyword arguments is still "
+                                      "TODO.")
+
         # This holds stuff statsmodels is not aware of, and fit() needs:
         mod._backstage = {'libraries' : libraries, 'command' : command,
                           'full_data' : data, 'kwargs' : kwargs}
@@ -124,7 +128,8 @@ class RRegressionModel(OLS):
         globalenv['data'] = self._backstage['full_data']
         formula_templ = "res <- {}({}, data=data{})"
 
-        # FIXME: process kwargs
+        # TODO: process kwargs
+
         self._full_formula = formula_templ.format(self._backstage['command'],
                                                   self.formula, '')
 
