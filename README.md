@@ -11,8 +11,6 @@ This allows to tackle, with very small code adaptations, the following use cases
 
 Only OLS has been tested so far; other models can be specified with the `command` parameter, and might or might not work.
 
-Loading R results from disk in progress.
-
 ## Examples
 
 ### With stargazer
@@ -51,3 +49,37 @@ The same can be done with `statsmodels`' `summary_col`:
 ```python3
 table = summary_col([est, est2, est3])
 ```
+
+### With R model loaded from disk
+
+The following R code will run a simple regression in R and save the desired results:
+
+```R
+require("datasets")
+data("cars")
+
+res = lm('dist ~ speed', data=cars)
+
+rsum = summary(res)
+ci = confint(res)
+
+save(rsum, file='precious_results.RData')
+save(ci, file='precious_results.RData')
+```
+
+The following Python code retrieve the same data from R for comparison:
+
+```python3
+from rpy2.robjects import r
+r("data(cars)")
+cars = r['cars']
+```
+
+The following Python codes reload the R results from disk and run the statsmodels model:
+```python3
+py_est = sm.OLS.from_formula('dist ~ speed', data=cars).fit()
+r['load']("precious_results.RData")
+r_est = RRegressionModel.from_r_object(r['rsum'], r['ci'])
+```
+
+<table style="text-align:center"><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="2"><em>Dependent variable:</em></td></tr><tr><td style="text-align:left"></td><tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td></tr><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Intercept</td><td>-17.579<sup>**</sup></td><td>-17.579<sup>**</sup></td></tr><tr><td style="text-align:left"></td><td>(6.758)</td><td>(6.758)</td></tr><tr><td style="text-align:left">speed</td><td>3.932<sup>***</sup></td><td>3.932<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(0.416)</td><td>(0.416)</td></tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Observations</td><td>50.0</td><td>50.0</td></tr><tr><td style="text-align: left">R<sup>2</sup></td><td>0.651</td><td>0.651</td></tr><tr><td style="text-align: left">Adjusted R<sup>2</sup></td><td>0.644</td><td>0.644</td></tr><tr><td style="text-align: left">Residual Std. Error</td><td>15.38(df = 48.0)</td><td>15.38(df = 48.0)</td></tr><tr><td style="text-align: left">F Statistic</td><td>89.567<sup>***</sup>(df = 1.0; 48.0)</td><td>89.567<sup>***</sup>(df = 1.0; 48.0)</td></tr><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Note:</td><td colspan="2" style="text-align: right"><em>p&lt;0.1</em>; <b>p&lt;0.05</b>; p&lt;0.01</td></tr></table>
