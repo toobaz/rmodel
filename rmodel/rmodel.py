@@ -11,12 +11,36 @@ from statsmodels.api import OLS
 from scipy import stats
 from patsy import ModelDesc
 
+
 class RRegressionResults:
     """
     This holds results from a model estimated with R, but mimicks the API of
     one estimated with statsmodels.
     """
     # All work is done directly on instances.
+
+
+class FakeNumber:
+    """
+    Produce an object that will raise an error when transformed to any integer,
+    float or string representation.
+    """
+    def __init__(self, msg):
+        self._msg = msg
+
+    def __getattribute__(self, attr):
+        if attr in ('__int__', '__float__', '__str__', '__round__', '__mul__',
+                    'round'):
+            raise MissingConfidenceIntervals(self._msg)
+        return object.__getattribute__(self, attr)
+
+
+class MissingConfidenceIntervals(Exception):
+    """
+    Used when an attempt to retrieve confidence intervals from RModel is made
+    but they were not provided.
+    """
+    pass
 
 
 class RModel(OLS):
@@ -210,15 +234,20 @@ class RModel(OLS):
                                        attrs['df_model'],
                                        attrs['df_resid'])
 
-        if ci is not None:
+        if ci is None:
+            msg = ("Trying to access the confidence intervals of a RModel "
+                   "which wasn't passed any.")
+            ci = pd.DataFrame(FakeNumber(msg),
+                              index=coef_names, columns=range(2))
+        else:
             ci = pd.DataFrame(r['ci'], index=coef_names)
 
-            def conf_int(alpha=0.05):
-                if alpha != 0.05:
-                    raise NotImplementedError("Only alpha=0.05 is supported, "
-                                              "{} passed".format(alpha))
-                return ci
-            attrs['conf_int'] = conf_int
+        def conf_int(alpha=0.05):
+            if alpha != 0.05:
+                raise NotImplementedError("Only alpha=0.05 is supported, "
+                                          "{} passed".format(alpha))
+            return ci
+        attrs['conf_int'] = conf_int
 
         return attrs
 

@@ -61,10 +61,8 @@ data("cars")
 res = lm('dist ~ speed', data=cars)
 
 rsum = summary(res)
-ci = confint(res)
 
 save(rsum, file='precious_results.RData')
-save(ci, file='precious_results.RData')
 ```
 
 The following Python code retrieves the same data from R for comparison:
@@ -79,7 +77,7 @@ The following Python code reloads the R results from disk and runs the statsmode
 ```python3
 py_est = sm.OLS.from_formula('dist ~ speed', data=cars).fit()
 r['load']("precious_results.RData")
-r_est = RModel.from_r_object(r['rsum'], r['ci'])
+r_est = RModel.from_r_object(r['rsum'])
 ```
 
 We can now summarize the two models together:
