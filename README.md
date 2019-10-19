@@ -22,7 +22,7 @@ import pandas as pd
 from sklearn import datasets
 import statsmodels.api as sm
 from stargazer.stargazer import Stargazer
-from rmodel import RRegressionModel
+from rmodel import RModel
 
 diabetes = datasets.load_diabetes()
 df = pd.DataFrame(diabetes.data)
@@ -31,7 +31,7 @@ df['target'] = diabetes.target
 
 est = sm.OLS.from_formula('target ~ Age + Sex + BMI + ABP', data=df).fit()
 est2 = sm.OLS.from_formula('target ~ Age + Sex + BMI + ABP + S1 + S2', data=df).fit()
-est3 = RRegressionModel.from_formula('target ~ Age + Sex + BMI + ABP + S1 + S2', data=df).fit()
+est3 = RModel.from_formula('target ~ Age + Sex + BMI + ABP + S1 + S2', data=df).fit()
 
 
 stargazer = Stargazer([est, est2, est3])
@@ -79,7 +79,7 @@ The following Python code reloads the R results from disk and runs the statsmode
 ```python3
 py_est = sm.OLS.from_formula('dist ~ speed', data=cars).fit()
 r['load']("precious_results.RData")
-r_est = RRegressionModel.from_r_object(r['rsum'], r['ci'])
+r_est = RModel.from_r_object(r['rsum'], r['ci'])
 ```
 
 We can now summarize the two models together:

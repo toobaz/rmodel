@@ -19,7 +19,7 @@ class RRegressionResults:
     # All work is done directly on instances.
 
 
-class RRegressionModel(OLS):
+class RModel(OLS):
     """
     Compatibility class to run models in R as if they were actually run with
     statsmodels.
@@ -59,7 +59,7 @@ class RRegressionModel(OLS):
         # Creating the OLS object and only then hijacking it allows us to best
         # profit of statsmodels' machinery:
         mod = OLS.from_formula(formula, data)
-        mod.__class__ = RRegressionModel
+        mod.__class__ = RModel
 
         if len(kwargs):
             raise NotImplementedError("Passing keyword arguments is still "
@@ -111,7 +111,7 @@ class RRegressionModel(OLS):
         # Creating the OLS object and only then hijacking it allows us to best
         # profit of statsmodels' machinery:
         mod = OLS.from_formula(formula, data)
-        mod.__class__ = RRegressionModel
+        mod.__class__ = RModel
 
         attrs = mod._inspect_R(rsum, ci=ci)
         wrap = mod._package_attrs(attrs)
@@ -171,7 +171,7 @@ class RRegressionModel(OLS):
         ----------
         res : R object or dict
             R summary of a fitted model: can be transformed to dict with
-            RRegressionModel._r_to_dict(res).
+            RModel._r_to_dict(res).
             Typically produced with "summary(fitted)" (in R).
         ci : R object
             Confidence intervals of a fitted model
