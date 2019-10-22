@@ -65,19 +65,18 @@ rsum = summary(res)
 save(rsum, file='precious_results.RData')
 ```
 
-The following Python code retrieves the same data from R for comparison:
+The following Python code reloads the R results from disk, as a statsmodels-like object:
+```python3
+r_est = RModel.from_rda("precious_results.RData", 'rsum')
+```
 
+The following Python code retrieves the same data from R for comparison, and runs the analogous statsmodels model:
 ```python3
 from rpy2.robjects import r
 r("data(cars)")
 cars = r['cars']
-```
 
-The following Python code reloads the R results from disk and runs the statsmodels model:
-```python3
 py_est = sm.OLS.from_formula('dist ~ speed', data=cars).fit()
-r['load']("precious_results.RData")
-r_est = RModel.from_r_object(r['rsum'])
 ```
 
 We can now summarize the two models together:
