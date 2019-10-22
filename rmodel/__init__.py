@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from rpy2.robjects import globalenv, r, pandas2ri
+from rpy2.rinterface import embedded
 pandas2ri.activate()
 
 from statsmodels.regression.linear_model import (RegressionResults,
@@ -11,6 +12,7 @@ from statsmodels.api import OLS
 from scipy import stats
 from patsy import ModelDesc
 
+from .r_translate import _df_from_r
 from .fake_number import FakeNumber
 
 class RRegressionResults:
@@ -149,10 +151,7 @@ class RModel(OLS):
         res = r['rsum']
         self._debug(res)
 
-        # Retrieve confidence intervals:
-        ci = r("ci <- confint(res)")
-
-        attrs = self._inspect_R(res, ci=ci)
+        attrs = self._inspect_R('rsum')
 
         ## STEP 3: package the results a statsmodels-like format
         wrap = self._package_attrs(attrs)
@@ -170,60 +169,96 @@ class RModel(OLS):
         d_res = dict(zip(robj.names, robj))
         return d_res
 
-    def _inspect_R(self, res, ci=None):
+    def _get_coeffs_mat(self, rsumname, d_res=None):
+        if d_res is None:
+            # Awkward, but allows self to be None:
+            d_res = RModel._r_as_dict(None, r[rsumname])
+
+        if "coefficients" in d_res:
+            return _df_from_r("{}$coefficients".format(rsumname))
+        elif 'mfxest' in d_res:
+            return _df_from_r("{}$mfxest".format(rsumname))
+
+        raise NotImplementedError("Could not recognize estimation model.")
+
+    def _inspect_R(self, rsumname, rresname=None):
         """
-        Extract from an R result the various pieces.
+        Extract from an R estimation summary the various pieces.
 
         Parameters
         ----------
-        res : R object or dict
-            R summary of a fitted model: can be transformed to dict with
-            RModel._r_to_dict(res).
-            Typically produced with "summary(fitted)" (in R).
-        ci : R object
-            Confidence intervals of a fitted model
-            Typically produced with "confint(fitted)" (in R).
+        rsumname : string
+            Name of estimation summary in the R environment.
+        rresname : string, default None
+            Name of estimation results in the R environment, if present.
+            Typically required in order to retrieve confidence intervals.
         """
 
+        res = r[rsumname]
         d_res = self._r_as_dict(res)
 
-        coeffs_mat = d_res['coefficients']
-
-        # FIXME: there MUST be a better way, the results matrix in R KNOWS its
-        # names. I shouldn't be retrieving them separately, and guessing the
-        # correct columns:
-        coef_names = r("names(coef(res))")
+        coeffs_mat = self._get_coeffs_mat(rsumname, d_res)
+        coef_names = coeffs_mat.index
 
         # R denotes the intercept as "(Intercept)", statsmodels as "Intercept":
         intercept_idces = np.where(coef_names == '(Intercept)')[0]
-        coef_names[intercept_idces[0]] = 'Intercept'
+        if len(intercept_idces):
+            # An index is immutable, so transform to np.array:
+            coef_names = coef_names.values
+            coef_names[intercept_idces[0]] = 'Intercept'
 
         # Retrieve main results:
+        # FIXME: get by label, not index
         attrs = {
-        'params' : pd.Series(coeffs_mat[:,0], index=coef_names),
-        'tvalues' : pd.Series(coeffs_mat[:,2], index=coef_names),
-        'pvalues' : pd.Series(coeffs_mat[:,3], index=coef_names),
-        'bse' : pd.Series(coeffs_mat[:,1], index=coef_names),
-        'rsquared' : d_res['r.squared'][0],
-        'rsquared_adj' : d_res['adj.r.squared'][0],
-        'scale' : d_res['sigma'][0]**2
+        'params' : pd.Series(coeffs_mat.iloc[:,0], index=coef_names),
+        'tvalues' : pd.Series(coeffs_mat.iloc[:,2], index=coef_names),
+        'pvalues' : pd.Series(coeffs_mat.iloc[:,3], index=coef_names),
+        'bse' : pd.Series(coeffs_mat.iloc[:,1], index=coef_names),
+        'rsquared' : d_res.get('r.squared',
+                               [FakeNumber("No R^2 available")])[0],
+        'rsquared_adj' : d_res.get('adj.r.squared',
+                               [FakeNumber("No adjusted R^2 available")])[0],
+        'scale' : (d_res['sigma'][0]**2 if 'sigma' in d_res else
+                   FakeNumber("No sigma/scale available"))
         }
 
-        (attrs['fvalue'],
-         attrs['df_model'],
-         attrs['df_resid']) = d_res['fstatistic']
-        # Couldn't find this ready in the R summary
-        attrs['f_pvalue'] = stats.f.sf(attrs['fvalue'],
-                                       attrs['df_model'],
-                                       attrs['df_resid'])
+        f_exc = FakeNumber("No f statistics available")
+        types = {'fvalue' : float, 'df_model' : int, 'df_resid' : int}
+        if 'fstatistic' in d_res:
+            # E.g. OLS
+            for attr, idx in zip(['fvalue', 'df_model', 'df_resid'], range(3)):
+                attrs[attr] = types[attr](d_res['fstatistic'][idx])
+        elif 'fit' in d_res:
+            # E.g. mfx marginal effects:
+            attrs['fvalue'] = f_exc
+            dfit = self._r_as_dict(d_res['fit'])
+            for attr, label in [('df_model', 'df.null'),
+                                ('df_resid', 'df.residual')]:
+                attrs[attr] = int(dfit[label])
+        else:
+            for attr in 'fvalue', 'df_model', 'df_resid':
+                attrs[attr] = f_exc
 
-        if ci is None:
+        # Couldn't find this ready in the R summary of an OLS:
+        if 'fstatistic' in d_res:
+            attrs['f_pvalue'] = stats.f.sf(attrs['fvalue'],
+                                           attrs['df_model'],
+                                           attrs['df_resid'])
+        else:
+            attrs['f_pvalue'] = FakeNumber("No f statistics available")
+
+        if rresname is not None:
+            try:
+                # Retrieve confidence intervals:
+                ci = r("ci <- confint({})".format(rresname))
+                ci = pd.DataFrame(r['ci'], index=coef_names)
+            except embedded.RRuntimeError:
+                ci = None
+        if rresname is None or ci is None:
             msg = ("Trying to access the confidence intervals of a RModel "
                    "which wasn't passed any.")
             ci = pd.DataFrame(FakeNumber(msg),
                               index=coef_names, columns=range(2))
-        else:
-            ci = pd.DataFrame(r['ci'], index=coef_names)
 
         def conf_int(alpha=0.05):
             if alpha != 0.05:
