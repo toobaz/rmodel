@@ -124,6 +124,66 @@ class RModel(OLS):
 
         attrs = mod._inspect_R(rsum, ci=ci)
         wrap = mod._package_attrs(attrs)
+
+        return wrap
+
+    @classmethod
+    def from_rda(cls, filename, objname):
+        """
+        Load the summary of an R model from a .rda file as statsmodels-like
+        estimation result.
+        Such file can be created with the "save()" command in R.
+
+        Parameters
+        ----------
+        filename : str
+            Path of the file to load from.
+        objname : str
+            Name of the object to load from the file.
+
+        Examples
+        --------
+        If an object named "regsum" was saved in R with the command
+            save(regsum, file = "/home/pietro/r_results.rda")
+        then it can be reloaded by calling this command as
+            res = RModel.from_rda("/home/pietro/r_results.rda", "regsum")
+        """
+
+        r['load'](filename)
+
+        d_res = cls._r_as_dict(None, r[objname])
+        try:
+            ci = r("ci <- confint({})".format(objname))
+        except embedded.RRuntimeError:
+            ci = None
+
+        # FIXME: while this works differently from the code building the
+        # coefficients matrix in _inspect_R (which does not retrieve from R),
+        # there is clearly room for de-duplication.
+        coefs = cls._get_coeffs_mat(None, objname)
+
+        items = list(coefs.index)
+
+        try:
+            # E.g. mfx marginal effects
+            target = str(d_res['call'][1][1])
+            formula = " ~ ".join([target, " + ".join(items)])
+            columns = [target] + items
+        except IndexError:
+            # E.g. OLS
+            # This is ugly...
+            formula = str(d_res['terms']).splitlines()[0]
+            target = formula.split(' ')[0].split('~')[0]
+
+        data = pd.DataFrame(-1, index=[0], columns=[target]+items)
+
+        # Creating the OLS object and only then hijacking it allows us to best
+        # profit of statsmodels' machinery:
+        mod = OLS.from_formula(formula, data)
+        mod.__class__ = RModel
+
+        attrs = mod._inspect_R(objname)
+        wrap = mod._package_attrs(attrs)
         
         return wrap
 
