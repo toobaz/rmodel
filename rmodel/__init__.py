@@ -94,6 +94,13 @@ class RModel(OLS):
         """
 
         d_res = cls._r_as_dict(None, rsum)
+
+        if not 'terms' in d_res:
+            msg = ("Interpreting r objects inside Python is only supported "
+                   "for few estimators. More will work using "
+                   "RModel.from_rdata() directly.")
+            raise NotImplementedError(msg)
+
         formula = str(d_res['terms']).splitlines()[0]
 
         # We want to create a fake dataset, and we use patsy to get the list of
