@@ -108,14 +108,12 @@ class RModel(OLS):
         # functions too... but who cares, identifying them would be at the
         # moment overkill.
         fobj = ModelDesc.from_formula(formula)
-        # Remove Intercept, which is the first:
         varnames = [t.name()
                     for t in fobj.rhs_termlist + fobj.lhs_termlist][1:]
-        data = pd.DataFrame(-1, index=[0], columns=varnames)
 
-        # The even ugliest alternative to rescanning the formla like this was
-        # to retrieve the formula from the first line of the representation of
-        # the 'variables' attribute of d_res['terms'] as retrieved from R...
+        # We need to pass some pd.DataFrame to from_formula() below - but it
+        # doesn't seem to be actually used.
+        data = pd.DataFrame(-1, index=[0], columns=[0])
 
         # Creating the OLS object and only then hijacking it allows us to best
         # profit of statsmodels' machinery:
