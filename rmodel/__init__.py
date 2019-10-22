@@ -11,6 +11,7 @@ from statsmodels.api import OLS
 from scipy import stats
 from patsy import ModelDesc
 
+from .fake_number import FakeNumber
 
 class RRegressionResults:
     """
@@ -18,29 +19,6 @@ class RRegressionResults:
     one estimated with statsmodels.
     """
     # All work is done directly on instances.
-
-
-class FakeNumber:
-    """
-    Produce an object that will raise an error when transformed to any integer,
-    float or string representation.
-    """
-    def __init__(self, msg):
-        self._msg = msg
-
-    def __getattribute__(self, attr):
-        if attr in ('__int__', '__float__', '__str__', '__round__', '__mul__',
-                    'round'):
-            raise MissingConfidenceIntervals(self._msg)
-        return object.__getattribute__(self, attr)
-
-
-class MissingConfidenceIntervals(Exception):
-    """
-    Used when an attempt to retrieve confidence intervals from RModel is made
-    but they were not provided.
-    """
-    pass
 
 
 class RModel(OLS):
