@@ -20,8 +20,13 @@ class RRegressionResults:
     This holds results from a model estimated with R, but mimicks the API of
     one estimated with statsmodels.
     """
-    # All work is done directly on instances.
+    def __init__(self):
+        # statsmodels.regression.linearmodel.RegressionResults.__init__()
+        # initializese the cache, which is otherwise managed at the class
+        # level. So let's do it here.
+        self._cache = {}
 
+        # All actual work instead is done directly on instances.
 
 class RModel(OLS):
     """
