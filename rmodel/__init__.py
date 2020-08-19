@@ -12,6 +12,8 @@ from statsmodels.api import OLS
 from scipy import stats
 from patsy import ModelDesc
 
+from warnings import warn
+
 from .r_translate import _df_from_r
 from .fake_number import FakeNumber
 
@@ -69,10 +71,6 @@ class RModel(OLS):
         # profit of statsmodels' machinery:
         mod = OLS.from_formula(formula, data)
         mod.__class__ = RModel
-
-        if len(kwargs):
-            raise NotImplementedError("Passing keyword arguments is still "
-                                      "TODO.")
 
         # This holds stuff statsmodels is not aware of, and fit() needs:
         mod._backstage = {'libraries' : libraries, 'command' : command,
@@ -200,12 +198,22 @@ class RModel(OLS):
             r("library('{}')".format(library))
 
         globalenv['data'] = self._backstage['full_data']
+
+        args_append = ''
+        for arg in self._backstage['kwargs']:
+            val = self._backstage['kwargs'][arg]
+            if isinstance(val, str):
+                args_append += ', {}={}'.format(arg, val)
+            else:
+                warn("Non-string keyword arguments are untested. Please "
+                     "report any problem on the RModel issue tracker.")
+                globalenv[arg] = val
+                args_append += ', {}={}'.format(arg, arg)
+
         formula_templ = "res <- {}({}, data=data{})"
 
-        # TODO: process kwargs
-
         self._full_formula = formula_templ.format(self._backstage['command'],
-                                                  self.formula, '')
+                                                  self.formula, args_append)
 
         self._debug("Run", self._full_formula)
         r(self._full_formula)
