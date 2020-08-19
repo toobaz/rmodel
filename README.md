@@ -9,13 +9,13 @@ This allows to tackle, with very small code adaptations, the following use cases
 
 ## Current status
 
-Only OLS has been tested so far; other models can be specified with the `command` parameter, and might or might not work.
+Only the `lm` R command has been tested so far; other models can be specified with the `command` parameter, and might or might not work.
 
 ## Examples
 
 ### With stargazer
 
-The following example takes the [python stargazer](https://github.com/mwburke/stargazer) example (with the `from_formula()` statsmodels syntax) and extends it with a new column which is exactly like the previous but estimated in R:
+The following example takes the [python stargazer](https://github.com/mwburke/stargazer) example (with the `from_formula()` statsmodels syntax) and extends it with a new column which is exactly like the previous but estimated in R, plus another similar one which passes a:
 
 ```python3
 import pandas as pd
@@ -25,21 +25,20 @@ from stargazer.stargazer import Stargazer
 from rmodel import RModel
 
 diabetes = datasets.load_diabetes()
-df = pd.DataFrame(diabetes.data)
-df.columns = ['Age', 'Sex', 'BMI', 'ABP', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6']
+df = pd.DataFrame(diabetes.data, columns=diabetes.feature_names)
 df['target'] = diabetes.target
 
-est = sm.OLS.from_formula('target ~ Age + Sex + BMI + ABP', data=df).fit()
-est2 = sm.OLS.from_formula('target ~ Age + Sex + BMI + ABP + S1 + S2', data=df).fit()
-est3 = RModel.from_formula('target ~ Age + Sex + BMI + ABP + S1 + S2', data=df).fit()
+est = sm.OLS.from_formula('target ~ age + sex + bmi + bp', data=df).fit()
+est2 = sm.OLS.from_formula('target ~ age + sex + bmi + bp + s1 + s2', data=df).fit()
+est3 = RModel.from_formula('target ~ age + sex + bmi + bp + s1 + s2', data=df).fit()
 
 
 stargazer = Stargazer([est, est2, est3])
 
-stargazer.render_html()
+as_html = stargazer.render_html()
 ```
 
-<table style="text-align:center"><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="3"><em>Dependent variable:</em></td></tr><tr><td style="text-align:left"></td><tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td><td>(3)</td></tr><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">ABP</td><td>416.674<sup>***</sup></td><td>397.583<sup>***</sup></td><td>397.583<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(69.495)</td><td>(70.87)</td><td>(70.87)</td></tr><tr><td style="text-align:left">Age</td><td>37.241<sup></sup></td><td>24.704<sup></sup></td><td>24.704<sup></sup></td></tr><tr><td style="text-align:left"></td><td>(64.117)</td><td>(65.411)</td><td>(65.411)</td></tr><tr><td style="text-align:left">BMI</td><td>787.179<sup>***</sup></td><td>789.742<sup>***</sup></td><td>789.742<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(65.424)</td><td>(66.887)</td><td>(66.887)</td></tr><tr><td style="text-align:left">Intercept</td><td>152.133<sup>***</sup></td><td>152.133<sup>***</sup></td><td>152.133<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(2.853)</td><td>(2.853)</td><td>(2.853)</td></tr><tr><td style="text-align:left">S1</td><td></td><td>197.852<sup></sup></td><td>197.852<sup></sup></td></tr><tr><td style="text-align:left"></td><td></td><td>(143.812)</td><td>(143.812)</td></tr><tr><td style="text-align:left">S2</td><td></td><td>-169.251<sup></sup></td><td>-169.251<sup></sup></td></tr><tr><td style="text-align:left"></td><td></td><td>(142.744)</td><td>(142.744)</td></tr><tr><td style="text-align:left">Sex</td><td>-106.578<sup>*</sup></td><td>-82.862<sup></sup></td><td>-82.862<sup></sup></td></tr><tr><td style="text-align:left"></td><td>(62.125)</td><td>(64.851)</td><td>(64.851)</td></tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Observations</td><td>442.0</td><td>442.0</td><td>442.0</td></tr><tr><td style="text-align: left">R<sup>2</sup></td><td>0.4</td><td>0.403</td><td>0.403</td></tr><tr><td style="text-align: left">Adjusted R<sup>2</sup></td><td>0.395</td><td>0.395</td><td>0.395</td></tr><tr><td style="text-align: left">Residual Std. Error</td><td>59.976(df = 437.0)</td><td>59.982(df = 435.0)</td><td>59.982(df = 435.0)</td></tr><tr><td style="text-align: left">F Statistic</td><td>72.913<sup>***</sup>(df = 4.0; 437.0)</td><td>48.915<sup>***</sup>(df = 6.0; 435.0)</td><td>48.915<sup>***</sup>(df = 6.0; 435.0)</td></tr><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Note:</td><td colspan="3" style="text-align: right"><em>p&lt;0.1</em>; <b>p&lt;0.05</b>; p&lt;0.01</td></tr></table>
+<table style="text-align:center"><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="3"><em>Dependent variable:target</em></td></tr><tr><td style="text-align:left"></td><tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td><td>(3)</td></tr><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Intercept</td><td>152.133<sup>***</sup></td><td>152.133<sup>***</sup></td><td>152.133<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(2.853)</td><td>(2.853)</td><td>(2.853)</td></tr><tr><td style="text-align:left">age</td><td>37.241<sup></sup></td><td>24.704<sup></sup></td><td>24.704<sup></sup></td></tr><tr><td style="text-align:left"></td><td>(64.117)</td><td>(65.411)</td><td>(65.411)</td></tr><tr><td style="text-align:left">bmi</td><td>787.179<sup>***</sup></td><td>789.742<sup>***</sup></td><td>789.742<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(65.424)</td><td>(66.887)</td><td>(66.887)</td></tr><tr><td style="text-align:left">bp</td><td>416.674<sup>***</sup></td><td>397.583<sup>***</sup></td><td>397.583<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(69.495)</td><td>(70.870)</td><td>(70.870)</td></tr><tr><td style="text-align:left">s1</td><td></td><td>197.852<sup></sup></td><td>197.852<sup></sup></td></tr><tr><td style="text-align:left"></td><td></td><td>(143.812)</td><td>(143.812)</td></tr><tr><td style="text-align:left">s2</td><td></td><td>-169.251<sup></sup></td><td>-169.251<sup></sup></td></tr><tr><td style="text-align:left"></td><td></td><td>(142.744)</td><td>(142.744)</td></tr><tr><td style="text-align:left">sex</td><td>-106.578<sup>*</sup></td><td>-82.862<sup></sup></td><td>-82.862<sup></sup></td></tr><tr><td style="text-align:left"></td><td>(62.125)</td><td>(64.851)</td><td>(64.851)</td></tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Observations</td><td>442</td><td>442</td><td>442</td></tr><tr><td style="text-align: left">R<sup>2</sup></td><td>0.400</td><td>0.403</td><td>0.403</td></tr><tr><td style="text-align: left">Adjusted R<sup>2</sup></td><td>0.395</td><td>0.395</td><td>0.395</td></tr><tr><td style="text-align: left">Residual Std. Error</td><td>59.976 (df=437)</td><td>59.982 (df=435)</td><td>59.982 (df=435)</td></tr><tr><td style="text-align: left">F Statistic</td><td>72.913<sup>***</sup> (df=4; 437)</td><td>48.915<sup>***</sup> (df=6; 435)</td><td>48.915<sup>***</sup> (df=6; 435)</td></tr><tr><td colspan="4" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Note:</td>\n <td colspan="3" style="text-align: right">\n  <sup>*</sup>p&lt;0.1;\n  <sup>**</sup>p&lt;0.05;\n  <sup>***</sup>p&lt;0.01\n </td></tr></table>
 
 
 ### With `summary_col`
@@ -85,4 +84,16 @@ stargazer = Stargazer([py_est, r_est])
 as_html = stargazer.render_html()
 ```
 
-<table style="text-align:center"><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="2"><em>Dependent variable:</em></td></tr><tr><td style="text-align:left"></td><tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td></tr><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Intercept</td><td>-17.579<sup>**</sup></td><td>-17.579<sup>**</sup></td></tr><tr><td style="text-align:left"></td><td>(6.758)</td><td>(6.758)</td></tr><tr><td style="text-align:left">speed</td><td>3.932<sup>***</sup></td><td>3.932<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(0.416)</td><td>(0.416)</td></tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Observations</td><td>50.0</td><td>50.0</td></tr><tr><td style="text-align: left">R<sup>2</sup></td><td>0.651</td><td>0.651</td></tr><tr><td style="text-align: left">Adjusted R<sup>2</sup></td><td>0.644</td><td>0.644</td></tr><tr><td style="text-align: left">Residual Std. Error</td><td>15.38(df = 48.0)</td><td>15.38(df = 48.0)</td></tr><tr><td style="text-align: left">F Statistic</td><td>89.567<sup>***</sup>(df = 1.0; 48.0)</td><td>89.567<sup>***</sup>(df = 1.0; 48.0)</td></tr><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Note:</td><td colspan="2" style="text-align: right"><em>p&lt;0.1</em>; <b>p&lt;0.05</b>; p&lt;0.01</td></tr></table>
+<table style="text-align:center"><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="2"><em>Dependent variable:dist</em></td></tr><tr><td style="text-align:left"></td><tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td></tr><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Intercept</td><td>-17.579<sup>**</sup></td><td>-17.579<sup>**</sup></td></tr><tr><td style="text-align:left"></td><td>(6.758)</td><td>(6.758)</td></tr><tr><td style="text-align:left">speed</td><td>3.932<sup>***</sup></td><td>3.932<sup>***</sup></td></tr><tr><td style="text-align:left"></td><td>(0.416)</td><td>(0.416)</td></tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Observations</td><td>50</td><td>1</td></tr><tr><td style="text-align: left">R<sup>2</sup></td><td>0.651</td><td>0.651</td></tr><tr><td style="text-align: left">Adjusted R<sup>2</sup></td><td>0.644</td><td>0.644</td></tr><tr><td style="text-align: left">Residual Std. Error</td><td>15.380 (df=48)</td><td>15.380 (df=48)</td></tr><tr><td style="text-align: left">F Statistic</td><td>89.567<sup>***</sup> (df=1; 48)</td><td>89.567<sup>***</sup> (df=1; 48)</td></tr><tr><td colspan="3" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align: left">Note:</td>\n <td colspan="2" style="text-align: right">\n  <sup>*</sup>p&lt;0.1;\n  <sup>**</sup>p&lt;0.05;\n  <sup>***</sup>p&lt;0.01\n </td></tr></table>
+
+## Passing keyword arguments
+
+Arguments to the R command can be transparently passed as keyword arguments.
+In the following example, a Weighted OLS is estimated by passing the `weights`
+argument to the `lm` R command.
+
+```python3
+# "age" is a standardized variable - we want positive weights:
+df['weights'] = df['age'] - df['age'].min()
+est4 = RModel.from_formula('target ~ age + sex + bmi + bp + s1 + s2', data=df, weights='weights').fit()
+```
