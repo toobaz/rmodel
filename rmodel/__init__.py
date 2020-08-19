@@ -46,6 +46,9 @@ class RModel(OLS):
             raise NotImplementedError("This class is not meant to be used "
                                       "directly - please use from_formula()")
 
+    def _initialize(self, debug=False):
+        self._debug = (lambda *x : print(*x)) if debug else (lambda *x : None)
+
     @classmethod
     def from_formula(cls, formula, data, command='lm', libraries=[],
                      debug=False, **kwargs):
@@ -61,7 +64,7 @@ class RModel(OLS):
             R command used for the estimation.
         libraries : list-like of strings, default empty
             R libraries which should be loaded before the estimation.
-        debug : Bool, default False
+        debug : bool, default False
             If True, print debug messages.
         **kwargs : additional arguments
             Arguments to be passed to the R command.
@@ -71,15 +74,17 @@ class RModel(OLS):
         # profit of statsmodels' machinery:
         mod = OLS.from_formula(formula, data)
         mod.__class__ = RModel
+        # This is now an RModel:
+        mod._initialize(debug=debug)
 
         # This holds stuff statsmodels is not aware of, and fit() needs:
         mod._backstage = {'libraries' : libraries, 'command' : command,
                           'full_data' : data, 'kwargs' : kwargs}
-        mod._debug = (lambda *x : print(*x)) if debug else (lambda *x : None)
+
         return mod
 
     @classmethod
-    def from_r_object(cls, rsum, ci=None):
+    def from_r_object(cls, rsum, ci=None, debug=False):
         """
         Reconstruct a model from an rpy2 summary object, and optionally its
         confidence intervals.
@@ -96,6 +101,8 @@ class RModel(OLS):
         ci : R object
             Confidence intervals of the fitted model
             Typically produced with "confint(fitted)" (in R).
+        debug : bool, default False
+            If True, print debug messages.
         """
 
         d_res = cls._r_as_dict(None, rsum)
@@ -124,6 +131,8 @@ class RModel(OLS):
         # profit of statsmodels' machinery:
         mod = OLS.from_formula(formula, data)
         mod.__class__ = RModel
+        # This is now an RModel:
+        mod._initialize(debug=debug)
 
         attrs = mod._inspect_R(rsum, ci=ci)
         wrap = mod._package_attrs(attrs)
@@ -131,7 +140,7 @@ class RModel(OLS):
         return wrap
 
     @classmethod
-    def from_rda(cls, filename, objname):
+    def from_rda(cls, filename, objname, debug=False):
         """
         Load the summary of an R model from a .rda file as statsmodels-like
         estimation result.
@@ -143,6 +152,8 @@ class RModel(OLS):
             Path of the file to load from.
         objname : str
             Name of the object to load from the file.
+        debug : bool, default False
+            If True, print debug messages.
 
         Examples
         --------
@@ -184,6 +195,8 @@ class RModel(OLS):
         # profit of statsmodels' machinery:
         mod = OLS.from_formula(formula, data)
         mod.__class__ = RModel
+        # This is now an RModel:
+        mod._initialize(debug=debug)
 
         attrs = mod._inspect_R(objname)
         wrap = mod._package_attrs(attrs)
