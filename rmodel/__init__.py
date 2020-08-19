@@ -354,17 +354,18 @@ class RModel(OLS):
         rres.model = self
 
         # We need to hijack this rather than subclassing because stargazer does
-        # not use "isistance()" but "type()":
+        # not use "isinstance()" but "type()":
         wrap = RegressionResultsWrapper(rres)
 
         # All items except "params" are @cache_readonly and need first to be
         # deleted, and then redefined:
         for attr in attrs:
-            if attr not in 'params':
+            if attr not in ('params',):
                 if hasattr(rres, attr):
                     delattr(rres, attr)
             setattr(rres, attr, attrs[attr])
             setattr(wrap, attr, attrs[attr])
+            self._debug("Set {} to {}".format(attr, attrs[attr]))
 
         rres.__class__ = RegressionResults
         return wrap
